@@ -7,6 +7,7 @@ CONFIG_DICT = {
     'mapping_dict' : '/content/gdrive/MyDrive/Resume_Matcher/mapping_dict.json',
     'top5_result' : '/content/gdrive/MyDrive/Resume_Matcher/top5.csv',
     'result_dict' : '/content/gdrive/MyDrive/Resume_Matcher/result_dict.json',
-    'jd_lim' : 100,
+    'jd_range_left' : 0,
+    'jd_range_right' : 50, 
 
 }

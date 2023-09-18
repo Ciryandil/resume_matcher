@@ -6,6 +6,7 @@ from encoders import encode, find_max_similarity
 import pandas as pd
 from tqdm import tqdm 
 from config import CONFIG_DICT
+import numpy as np
 
 parsed_resumes = {}
 parsed_jds = {}
@@ -18,6 +19,7 @@ extracted_resumes = json.load(open(CONFIG_DICT['extracted_resumes']))
 mapping_dict = json.load(open(CONFIG_DICT['mapping_dict']))
 
 # Parsing job description sections
+print("Parsing JDs...")
 for i in tqdm(range(job_descs.shape[0])):
     job_description = json.loads(job_descs['model_response'][i])
 
@@ -30,6 +32,7 @@ for i in tqdm(range(job_descs.shape[0])):
             parsed_jds[i][jd_key] = parse_section(job_description[jd_key], jd_key)
 
 # Parsing resume sections
+print("Parsing resumes...")
 for resume_i in tqdm(list(extracted_resumes.keys())):
     resume = extracted_resumes[resume_i]
 
@@ -39,12 +42,19 @@ for resume_i in tqdm(list(extracted_resumes.keys())):
         parsed_resumes[resume_i][r_key] = parse_section(resume[r_key], r_key)
 
 # Encoding the parsed job descriptions and resumes
+print("Encoding JDs...")
 encoded_jds = encode(parsed_jds)
+print("Encoding resumes...")
 encoded_resumes = encode(parsed_resumes)
 
+print("Matching resumes to JDs...")
 # Calculating similarity between first jd_lim JDs and all resumes
 result_dict = {}
-for jd_key in tqdm(list(encoded_jds.keys())[CONFIG_DICT['jd_lim']]):
+# If a portion of the resumes have already been examined and matches stored, we add on to them
+if os.path.exists(CONFIG_DICT['result_dict']):
+    result_dict = json.load(open(CONFIG_DICT['result_dict']))
+
+for jd_key in tqdm(list(encoded_jds.keys())[CONFIG_DICT['jd_range_left']:CONFIG_DICT['jd_range_right']]):
     for resume_i in list(encoded_resumes.keys()):
         # Initializing sim_arr to store the maximum similarity for each section of the JD
         sim_arr = []
@@ -56,12 +66,17 @@ for jd_key in tqdm(list(encoded_jds.keys())[CONFIG_DICT['jd_lim']]):
                 continue
             # Obtain the best corresponding resume sections and create a list of all their parsed parts
             corr_keys = mapping_dict[key]
-            resume_encoding_corr = []
+            resume_encoding_corr = None
             for r_key in corr_keys:
                 if r_key in list(encoded_resumes[resume_i].keys()):
-                    resume_encoding_corr.extend(encoded_resumes[resume_i][r_key])
+                    if resume_encoding_corr is None and encoded_resumes[resume_i][r_key].shape[0] != 0:
+                        resume_encoding_corr = encoded_resumes[resume_i][r_key]
+                    else:
+                        if encoded_resumes[resume_i][r_key].shape[0] == 0:
+                            continue
+                        resume_encoding_corr = np.concatenate((resume_encoding_corr, encoded_resumes[resume_i][r_key]))
             # If the list is empty, then we score that resume 0 on that particular JD section
-            if len(resume_encoding_corr) == 0:
+            if resume_encoding_corr is None or resume_encoding_corr.shape[0] == 0:
                 sim_arr.append(0)
             else:
                 sim_arr.append(find_max_similarity(encoded_jds[jd_key][key], resume_encoding_corr))
@@ -85,6 +100,7 @@ for jd in result_dict.keys():
     resume_list = list(result_dict[jd].keys())
     top5_matches[jd] = resume_list[:5]
 
+print("Saving results...")
 # Save the results of top 5 matches as csv
 result_df = pd.DataFrame.from_dict(top5_matches)
 result_df = result_df.transpose()
@@ -95,4 +111,4 @@ json_result = json.dumps(result_dict)
 with open(CONFIG_DICT['result_dict'], 'w') as f:
     f.write(json_result)
 
-
+print("Finished!")

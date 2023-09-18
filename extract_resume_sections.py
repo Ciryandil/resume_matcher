@@ -8,6 +8,7 @@ from config import CONFIG_DICT
 data_dir = CONFIG_DICT['resume_data_dir']
 resume_headers = json.load(open(CONFIG_DICT['resume_headers']))
 
+print("Extracting sections from resume...")
 # Iteratively reading and extracting the respective sections of each resume into the sections_dir dict
 sections_dir = {}
 for dir in os.listdir(data_dir):

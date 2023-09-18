@@ -1,6 +1,8 @@
 import torch
 import torch.nn.functional as F
 from sentence_transformers import SentenceTransformer
+from tqdm import tqdm
+import numpy as np
 
 def find_max_similarity(list1, list2):
     # Convert the lists of vectors to PyTorch tensors
@@ -26,15 +28,16 @@ def encode(parsed_dict):
     encoded_dict = {}
 
     # Iterate through the keys (entries) in the 'parsed_dict'.
-    for entry in parsed_dict.keys():
+    for pd_key in tqdm(parsed_dict.keys()):
+        entry = parsed_dict[pd_key]
         for section in entry.keys():
             # Check if the 'entry' is not already a key in the 'encoded_dict'.
-            if not entry in encoded_dict.keys():
+            if not pd_key in encoded_dict.keys():
                 # If not, create an empty dictionary for the 'entry'.
-                encoded_dict[entry] = {}
+                encoded_dict[pd_key] = {}
             
             # Use the SentenceTransformer model to encode the text in 'parsed_dict[entry][section]'.
-            encoded_dict[entry][section] = model.encode(parsed_dict[entry][section])
+            encoded_dict[pd_key][section] = np.array(model.encode(parsed_dict[pd_key][section]))
     
     # Return the 'encoded_dict' containing the encoded representations of the parsed text.
     return encoded_dict
